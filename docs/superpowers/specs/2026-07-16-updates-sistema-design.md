@@ -22,7 +22,18 @@ Cinco subsistemas solicitados. Tres ya existen parcialmente:
 3. **Gastos:** página propia con historial y filtros. Sigue alimentando el Corte de Caja (fuente única de verdad).
 4. **Pagos pendientes:** visibles en **ambos** lados (badge en la lista + bloque en la ficha).
 5. **Permisos:** Gastos → ADMIN + RECEPCIONISTA. Consultorios → ADMIN. Dentista no ve Gastos ni Consultorios.
-6. **Regla de deuda:** es deuda si la cita está **COMPLETADA** (servicio ya dado) **o** si dejó **apartado (DEPOSIT)**, y lo pagado < precio del servicio. Las citas futuras sin ningún pago **no** son deuda.
+
+   > ⚠️ **Cómo se aplican los permisos (aprendido en la implementación de Consultorios):** `roles` en `config/nav.ts` **solo esconde el link del menú** — no restringe nada. Ni el middleware (`auth.config.ts` → `authorized()` solo valida que haya sesión) ni `app/dashboard/layout.tsx` verifican el rol. **Cada página con restricción de rol DEBE hacer el check en su server component**, como ya lo hacen `services`, `dentists`, `users` y `analytics`:
+   > ```ts
+   > const session = await auth()
+   > if ((session?.user as { role?: string } | undefined)?.role !== "ADMIN") {
+   >     redirect("/dashboard/agenda")
+   > }
+   > ```
+   > Aplica a **todos** los módulos restantes de este spec (Gastos, Caja).
+
+6. **Deuda de seguridad conocida (fuera de alcance, pero real):** **ningún** server action del repo valida sesión ni rol (`actions/*.ts` y `lib/actions/*.ts` — cero checks). Aun con el guard de página, las actions siguen siendo invocables como endpoints RPC por cualquier usuario autenticado. Esto es preexistente y afecta a todo el sistema por igual, no solo a lo nuevo. Merece su propia iteración.
+7. **Regla de deuda:** es deuda si la cita está **COMPLETADA** (servicio ya dado) **o** si dejó **apartado (DEPOSIT)**, y lo pagado < precio del servicio. Las citas futuras sin ningún pago **no** son deuda.
 
 ---
 

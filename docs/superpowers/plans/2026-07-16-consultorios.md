@@ -465,7 +465,9 @@ export default async function ConsultoriesPage() {
 
 - [ ] **Step 2: Agregar la entrada al menú**
 
-En `config/nav.ts`, dentro del grupo `"Configuración"`, agregar el ítem **antes** de "Servicios" (orden: Consultorios, Servicios, Dentistas, Usuarios). El grupo ya tiene `roles: ["ADMIN"]`, así que hereda la restricción.
+En `config/nav.ts`, dentro del grupo `"Configuración"`, agregar el ítem **antes** de "Servicios" (orden: Consultorios, Servicios, Dentistas, Usuarios). El grupo ya tiene `roles: ["ADMIN"]`, así que el ítem **no** declara `roles` propios.
+
+> ⚠️ **`roles` en `config/nav.ts` NO restringe el acceso — solo esconde el link.** El sidebar filtra visualmente, pero cualquiera puede navegar por URL directa. La restricción real **debe** ir en el server component de la página (ver Task 4, Step 1).
 
 Importar el ícono `Building2` en la línea de imports de `lucide-react` y agregar:
 
