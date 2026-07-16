@@ -17,6 +17,7 @@
 - **Retorno de actions:** seguir el contrato existente — `{ success: true }` o `{ error: string }`. Nunca lanzar excepciones al cliente.
 - **Sin tests:** el proyecto no tiene framework de tests. Verificación = `npx tsc --noEmit` + `npm run lint` + prueba en el navegador.
 - **Modelo existente (no modificar):** `Consultory { id, name, description?, appointments[], createdAt, updatedAt }`.
+- **Tipado estricto:** prohibido `any` y `@ts-ignore` en el código nuevo. El patrón existente de Servicios los usa (`useForm<any>` + `// @ts-ignore`), pero se verificó que el tipado estricto (`useForm<z.infer<typeof formSchema>>` + `zodResolver`) compila limpio con esta versión de Zod/resolvers. "Espejo del patrón de Servicios" se refiere a **estructura y UX**, no a copiar esa deuda técnica.
 
 ## File Structure
 
@@ -185,6 +186,8 @@ const formSchema = z.object({
     description: z.string().optional(),
 })
 
+type FormValues = z.infer<typeof formSchema>
+
 interface ConsultoryDialogProps {
     children?: React.ReactNode
     consultory?: Consultory
@@ -198,8 +201,7 @@ export function ConsultoryDialog({ children, consultory, open: controlledOpen, o
     const open = isControlled ? controlledOpen : internalOpen
     const setOpen = isControlled ? onOpenChange! : setInternalOpen
 
-    const form = useForm<any>({
-        // @ts-ignore
+    const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: consultory?.name || "",
@@ -207,7 +209,7 @@ export function ConsultoryDialog({ children, consultory, open: controlledOpen, o
         },
     })
 
-    async function onSubmit(values: any) {
+    async function onSubmit(values: FormValues) {
         const result = consultory
             ? await updateConsultory(consultory.id, values)
             : await createConsultory(values)
