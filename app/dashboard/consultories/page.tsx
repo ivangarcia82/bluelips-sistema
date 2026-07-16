@@ -4,7 +4,14 @@ import { getConsultories } from "@/actions/consultories"
 import { ConsultoryDialog } from "@/components/consultories/consultory-dialog"
 import { ConsultoryTable } from "@/components/consultories/consultory-table"
 
+import { auth } from "@/auth"
+import { redirect } from "next/navigation"
+
 export default async function ConsultoriesPage() {
+    const session = await auth()
+    if ((session?.user as { role?: string } | undefined)?.role !== "ADMIN") {
+        redirect("/dashboard/agenda")
+    }
     const consultories = await getConsultories()
 
     return (
