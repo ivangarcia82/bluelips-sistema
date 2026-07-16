@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -56,6 +56,16 @@ export function ConsultoryDialog({ children, consultory, open: controlledOpen, o
             description: consultory?.description || "",
         },
     })
+
+    // Resincroniza el formulario con el consultorio actual cada vez que se abre
+    useEffect(() => {
+        if (open) {
+            form.reset({
+                name: consultory?.name || "",
+                description: consultory?.description || "",
+            })
+        }
+    }, [open, consultory, form])
 
     async function onSubmit(values: FormValues) {
         const result = consultory
