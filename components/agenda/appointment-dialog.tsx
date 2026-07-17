@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Combobox } from "@/components/ui/combobox"
 import { PatientCombobox } from "@/components/patients/patient-combobox"
+import { formatClinic } from "@/lib/timezone"
 import { createAppointment, updateAppointment } from "@/actions/agenda"
 import { Dentist, Service, Consultory, Patient, Appointment } from "@prisma/client"
 
@@ -100,7 +101,7 @@ export function AppointmentDialog({
             dentistId: appointment?.dentistId || "",
             serviceId: appointment?.serviceId || "",
             consultoryId: appointment?.consultoryId || defaultConsultoryId || "",
-            startTime: appointment ? format(new Date(appointment.startTime), "HH:mm") : (defaultTime || "09:00"),
+            startTime: appointment ? formatClinic(appointment.startTime, "HH:mm") : (defaultTime || "09:00"),
             duration: appointment ? Math.round((new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()) / 60000) : defaultDuration,
         },
     })
@@ -117,7 +118,7 @@ export function AppointmentDialog({
                     dentistId: appointment.dentistId,
                     serviceId: appointment.serviceId,
                     consultoryId: appointment.consultoryId,
-                    startTime: format(new Date(appointment.startTime), "HH:mm"),
+                    startTime: formatClinic(appointment.startTime, "HH:mm"),
                     duration: Math.round((new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()) / 60000),
                 })
                 // Find service category

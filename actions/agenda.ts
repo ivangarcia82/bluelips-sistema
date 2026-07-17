@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { Appointment, AppointmentStatus } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { clinicWallTimeToUtc } from "@/lib/timezone"
 
 const createAppointmentSchema = z.object({
     isNewPatient: z.boolean().default(true),
@@ -114,7 +115,7 @@ export async function updateAppointment(id: string, data: any) {
     let updateData: any = { ...rest }
 
     if (date && startTime && duration) {
-        const startDateTime = new Date(`${date}T${startTime}:00`)
+        const startDateTime = clinicWallTimeToUtc(date, startTime)
         const endDateTime = new Date(startDateTime.getTime() + duration * 60000)
 
         // Check availability (exclude self)
@@ -187,8 +188,8 @@ export async function blockTimeSlot(data: {
     endTime: string, // or duration
     notes?: string
 }) {
-    const startDateTime = new Date(`${data.date}T${data.startTime}:00`)
-    const endDateTime = new Date(`${data.date}T${data.endTime}:00`)
+    const startDateTime = clinicWallTimeToUtc(data.date, data.startTime)
+    const endDateTime = clinicWallTimeToUtc(data.date, data.endTime)
 
     // Check availability
     const conflicting = await prisma.appointment.findFirst({
@@ -254,13 +255,9 @@ export async function blockTimeSlot(data: {
 export async function createAppointment(data: z.infer<typeof createAppointmentSchema>) {
     const validated = createAppointmentSchema.parse(data)
 
-    // Construct Date objects
-    // data.date is YYYY-MM-DD
-    const [hours, minutes] = validated.startTime.split(':').map(Number)
-
-    // Create base date in UTC/Local correctly
-    // For simplicity in this demo, we assume the input date string is local date YYYY-MM-DD
-    const startDateTime = new Date(`${validated.date}T${validated.startTime}:00`)
+    // Interpret the wall-clock time in the clinic's timezone -> real UTC instant,
+    // independent of the server's timezone (Vercel runs in UTC).
+    const startDateTime = clinicWallTimeToUtc(validated.date, validated.startTime)
     const endDateTime = new Date(startDateTime.getTime() + validated.duration * 60000)
 
     // Check availability

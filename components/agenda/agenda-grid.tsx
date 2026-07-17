@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Consultory, Appointment, Dentist, Service, Patient } from "@prisma/client"
-import { format, differenceInMinutes, startOfDay, getHours, getMinutes } from "date-fns"
-import { es } from "date-fns/locale"
+import { format, differenceInMinutes } from "date-fns"
+import { clinicHour, clinicMinute, formatClinic } from "@/lib/timezone"
 import { AppointmentDialog } from "./appointment-dialog"
 import { PaymentDialog } from "@/components/payments/payment-dialog"
 import { BlockDialog } from "./block-dialog"
@@ -15,8 +15,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { cancelAppointment } from "@/actions/agenda"
-import { Pencil, Trash2, Ban, DollarSign } from "lucide-react"
+import { cancelAppointment, updateAppointment } from "@/actions/agenda"
+import { Pencil, Trash2, Ban, DollarSign, GripVertical } from "lucide-react"
 
 type AppointmentWithDetails = Appointment & {
     patient: Patient
@@ -54,6 +54,11 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
     const [selectionDialog, setSelectionDialog] = useState<{ startTime: string, duration: number, consultoryId: string, date: Date } | null>(null)
     const [blockDialog, setBlockDialog] = useState<{ startTime: string, endTime: string, consultoryId: string } | null>(null)
 
+    // Drag-to-reschedule state
+    const dragRef = useRef<{ apt: AppointmentWithDetails; moved: boolean } | null>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const [dragPreview, setDragPreview] = useState<{ aptId: string; consultoryId: string; top: number; height: number } | null>(null)
+
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000) // Update every minute
         return () => clearInterval(timer)
@@ -79,7 +84,7 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
         const start = new Date(apt.startTime)
         const end = new Date(apt.endTime)
 
-        const startMinutes = (getHours(start) - startHour) * 60 + getMinutes(start)
+        const startMinutes = (clinicHour(start) - startHour) * 60 + clinicMinute(start)
         const duration = differenceInMinutes(end, start)
         const heightPerMinute = 80 / 60
 
@@ -91,10 +96,10 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
 
     const getCurrentTimeTop = () => {
         const now = currentTime
-        const currentHour = getHours(now)
+        const currentHour = clinicHour(now)
         if (currentHour < startHour || currentHour > 20) return null
 
-        const startMinutes = (currentHour - startHour) * 60 + getMinutes(now)
+        const startMinutes = (currentHour - startHour) * 60 + clinicMinute(now)
         const heightPerMinute = 80 / 60
         return startMinutes * heightPerMinute
     }
@@ -158,11 +163,70 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
         setSelection(null)
     }
 
+    // --- Drag to reschedule ---
+    const HEIGHT_PER_MIN = 80 / 60
+    const SNAP_MIN = 15
+
+    // Resolve the grid cell under the pointer -> { consultoryId, hour, minute (snapped) }
+    const resolveDrop = (clientX: number, clientY: number) => {
+        const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+        const cell = el?.closest("[data-slot-consultory]") as HTMLElement | null
+        if (!cell) return null
+        const consultoryId = cell.getAttribute("data-slot-consultory")!
+        const hour = Number(cell.getAttribute("data-slot-hour"))
+        const rect = cell.getBoundingClientRect()
+        const rawMin = ((clientY - rect.top) / rect.height) * 60
+        const minute = Math.max(0, Math.min(45, Math.round(rawMin / SNAP_MIN) * SNAP_MIN))
+        return { consultoryId, hour, minute }
+    }
+
+    const startDrag = (e: React.PointerEvent, apt: AppointmentWithDetails) => {
+        e.preventDefault()
+        e.stopPropagation()
+        dragRef.current = { apt, moved: false }
+        setIsDragging(true)
+        const durationMin = differenceInMinutes(new Date(apt.endTime), new Date(apt.startTime))
+
+        const onMove = (ev: PointerEvent) => {
+            if (!dragRef.current) return
+            dragRef.current.moved = true
+            const drop = resolveDrop(ev.clientX, ev.clientY)
+            if (!drop) return
+            const top = (drop.hour - startHour) * 80 + drop.minute * HEIGHT_PER_MIN
+            setDragPreview({ aptId: apt.id, consultoryId: drop.consultoryId, top, height: durationMin * HEIGHT_PER_MIN })
+        }
+
+        const onUp = async (ev: PointerEvent) => {
+            document.removeEventListener("pointermove", onMove)
+            document.removeEventListener("pointerup", onUp)
+            const info = dragRef.current
+            dragRef.current = null
+            setIsDragging(false)
+            setDragPreview(null)
+            if (!info || !info.moved) return
+            const drop = resolveDrop(ev.clientX, ev.clientY)
+            if (!drop) return
+            // Skip if dropped on the same spot
+            if (drop.consultoryId === apt.consultoryId && drop.hour === clinicHour(apt.startTime) && drop.minute === clinicMinute(apt.startTime)) return
+            const startTime = `${String(drop.hour).padStart(2, "0")}:${String(drop.minute).padStart(2, "0")}`
+            const res = await updateAppointment(apt.id, {
+                date: formatClinic(apt.startTime, "yyyy-MM-dd"),
+                startTime,
+                duration: durationMin,
+                consultoryId: drop.consultoryId,
+            })
+            if (res?.error) alert(res.error)
+        }
+
+        document.addEventListener("pointermove", onMove)
+        document.addEventListener("pointerup", onUp)
+    }
+
     const timeIndicatorTop = getCurrentTimeTop()
 
     return (
         <div
-            className="flex h-full flex-col bg-white dark:bg-slate-950 rounded-lg shadow-sm border overflow-hidden select-none"
+            className={`flex h-full flex-col bg-white dark:bg-slate-950 rounded-lg shadow-sm border overflow-hidden select-none ${isDragging ? "cursor-grabbing" : ""}`}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
@@ -208,6 +272,8 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
                                 {hours.map((hour) => (
                                     <div
                                         key={`${consultory.id}-${hour}`}
+                                        data-slot-consultory={consultory.id}
+                                        data-slot-hour={hour}
                                         className="h-20 border-b border-gray-100 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors cursor-pointer"
                                         onMouseDown={(e) => handleMouseDown(consultory.id, hour, e)}
                                         onMouseEnter={() => handleMouseEnter(consultory.id, hour)}
@@ -230,11 +296,21 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
                                                         borderTopWidth: '1px',
                                                         borderRightWidth: '1px',
                                                         borderBottomWidth: '1px',
-                                                        borderColor: isBlocked ? '#e5e7eb' : apt.dentist.color + '40'
+                                                        borderColor: isBlocked ? '#e5e7eb' : apt.dentist.color + '40',
+                                                        opacity: dragPreview?.aptId === apt.id ? 0.4 : undefined,
+                                                        pointerEvents: isDragging ? 'none' : undefined,
                                                     }}
                                                     onClick={(e) => e.stopPropagation()}
                                                     onMouseDown={(e) => e.stopPropagation()}
                                                 >
+                                                    {/* Drag handle: arrastrar para reprogramar */}
+                                                    <div
+                                                        onPointerDown={(e) => startDrag(e, apt)}
+                                                        className="absolute top-0.5 right-0.5 z-20 cursor-grab rounded p-0.5 text-gray-400 hover:bg-black/5 hover:text-gray-600"
+                                                        title="Arrastra para mover la cita"
+                                                    >
+                                                        <GripVertical className="h-3.5 w-3.5" />
+                                                    </div>
                                                     {isBlocked ? (
                                                         <div className="flex items-center justify-center h-full text-gray-500 font-medium italic">
                                                             <Ban className="h-3 w-3 mr-1" />
@@ -249,7 +325,7 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
                                                                 {apt.service.name}
                                                             </div>
                                                             <div className="mt-auto flex items-center justify-between text-[10px] text-gray-500">
-                                                                <span>{format(new Date(apt.startTime), "h:mm a")} - {format(new Date(apt.endTime), "h:mm a")}</span>
+                                                                <span>{formatClinic(apt.startTime, "h:mm a")} - {formatClinic(apt.endTime, "h:mm a")}</span>
                                                             </div>
                                                         </div>
                                                     )}
@@ -299,6 +375,14 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
                                         </DropdownMenu>
                                     )
                                 })}
+
+                                {/* Drop preview while dragging */}
+                                {dragPreview && dragPreview.consultoryId === consultory.id && (
+                                    <div
+                                        className="absolute left-1 right-1 z-30 rounded-md border-2 border-dashed border-blue-500 bg-blue-500/10 pointer-events-none"
+                                        style={{ top: `${dragPreview.top}px`, height: `${dragPreview.height}px` }}
+                                    />
+                                )}
 
                                 {/* Selection Overlay */}
                                 {isSelectionCol && selection && (
@@ -352,7 +436,7 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
                         >
                             <div className="w-16 flex justify-end pr-2">
                                 <span className="text-[10px] font-bold text-red-500 bg-white dark:bg-slate-950 px-1 rounded-sm">
-                                    {format(currentTime, "HH:mm")}
+                                    {formatClinic(currentTime, "HH:mm")}
                                 </span>
                             </div>
                             <div className="flex-1 h-[2px] bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.6)]">
