@@ -44,7 +44,7 @@ export default async function Home() {
           >
             <Button size="lg" className="bg-blue-600 hover:bg-blue-700">Agendar Cita</Button>
           </AppointmentDialog>
-          <Link href="/api/auth/signin">
+          <Link href="/login">
             <Button variant="outline" size="lg">Iniciar Sesión</Button>
           </Link>
         </div>

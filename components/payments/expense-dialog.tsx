@@ -25,13 +25,7 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { createExpense } from "@/actions/expenses"
 import { toast } from "sonner"
 
@@ -72,7 +66,7 @@ export function ExpenseDialog({ children, dentists }: ExpenseDialogProps) {
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            await createExpense(values)
+            await createExpense({ ...values, amount: Number(values.amount) })
             toast.success("Egreso registrado correctamente")
             setOpen(false)
             form.reset()
@@ -132,20 +126,16 @@ export function ExpenseDialog({ children, dentists }: ExpenseDialogProps) {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Categoría</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecciona una categoría" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {CATEGORIES.map((cat) => (
-                                                <SelectItem key={cat.value} value={cat.value}>
-                                                    {cat.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormControl>
+                                        <Combobox
+                                            options={CATEGORIES.map((cat) => ({ value: cat.value, label: cat.label }))}
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            placeholder="Selecciona una categoría"
+                                            searchPlaceholder="Buscar categoría..."
+                                            emptyText="Sin categorías."
+                                        />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -158,20 +148,16 @@ export function ExpenseDialog({ children, dentists }: ExpenseDialogProps) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Dentista Recibe</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Selecciona un dentista" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {dentists.map((d) => (
-                                                    <SelectItem key={d.id} value={d.id}>
-                                                        {d.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <FormControl>
+                                            <Combobox
+                                                options={dentists.map((d) => ({ value: d.id, label: d.name }))}
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                placeholder="Selecciona un dentista"
+                                                searchPlaceholder="Buscar dentista..."
+                                                emptyText="Sin dentistas."
+                                            />
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}

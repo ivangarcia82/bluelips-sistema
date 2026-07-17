@@ -24,13 +24,7 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { createUser } from "@/actions/users"
 import { Role } from "@prisma/client"
 
@@ -138,18 +132,20 @@ export function UserDialog({ children, onSuccess }: UserDialogProps) {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Rol</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Seleccionar rol" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="ADMIN">Administrador</SelectItem>
-                                            <SelectItem value="RECEPTIONIST">Recepcionista</SelectItem>
-                                            <SelectItem value="DENTIST">Dentista</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <FormControl>
+                                        <Combobox
+                                            options={[
+                                                { value: "ADMIN", label: "Administrador" },
+                                                { value: "RECEPTIONIST", label: "Recepcionista" },
+                                                { value: "DENTIST", label: "Dentista" },
+                                            ]}
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            placeholder="Seleccionar rol"
+                                            searchPlaceholder="Buscar rol..."
+                                            emptyText="Sin roles."
+                                        />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

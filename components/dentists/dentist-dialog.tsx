@@ -49,8 +49,7 @@ export function DentistDialog({ children, dentist, open: controlledOpen, onOpenC
     const open = isControlled ? controlledOpen : internalOpen
     const setOpen = isControlled ? onOpenChange! : setInternalOpen
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        // @ts-ignore
+    const form = useForm<any>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: dentist?.name || "",

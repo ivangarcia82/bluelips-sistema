@@ -24,13 +24,7 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { blockTimeSlot } from "@/actions/agenda"
 import { Consultory } from "@prisma/client"
 
@@ -116,18 +110,16 @@ export function BlockDialog({
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Consultorio</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Seleccionar..." />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {consultories.map((c) => (
-                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormControl>
+                                        <Combobox
+                                            options={consultories.map((c) => ({ value: c.id, label: c.name }))}
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            placeholder="Seleccionar consultorio"
+                                            searchPlaceholder="Buscar consultorio..."
+                                            emptyText="Sin consultorios."
+                                        />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

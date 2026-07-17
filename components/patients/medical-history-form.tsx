@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { saveMedicalHistory } from "@/actions/patients"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
@@ -181,19 +181,18 @@ export function MedicalHistoryForm({ patient, medicalHistory }: MedicalHistoryFo
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                         <Label>Sexo</Label>
-                        <Select
+                        <Combobox
+                            options={[
+                                { value: "Femenino", label: "Femenino" },
+                                { value: "Masculino", label: "Masculino" },
+                                { value: "Otro", label: "Otro" },
+                            ]}
                             value={form.watch("gender") || ""}
-                            onValueChange={(val) => form.setValue("gender", val)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Seleccione..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Femenino">Femenino</SelectItem>
-                                <SelectItem value="Masculino">Masculino</SelectItem>
-                                <SelectItem value="Otro">Otro</SelectItem>
-                            </SelectContent>
-                        </Select>
+                            onChange={(val) => form.setValue("gender", val)}
+                            placeholder="Seleccione..."
+                            searchPlaceholder="Buscar..."
+                            emptyText="Sin opciones."
+                        />
                     </div>
                     
                     <div className="space-y-2">

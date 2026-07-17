@@ -26,15 +26,8 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-    SelectGroup,
-    SelectLabel,
-} from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
+import { PatientCombobox } from "@/components/patients/patient-combobox"
 import { Textarea } from "@/components/ui/textarea"
 import { createPayment } from "@/actions/payments"
 import { PaymentType, PaymentMethod, Patient, Dentist, Service } from "@prisma/client"
@@ -206,18 +199,13 @@ export function PaymentDialog({
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Seleccionar Paciente</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Buscar paciente..." />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {patients.map((p) => (
-                                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                <FormControl>
+                                                    <PatientCombobox
+                                                        patients={patients}
+                                                        value={field.value}
+                                                        onChange={field.onChange}
+                                                    />
+                                                </FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -232,18 +220,16 @@ export function PaymentDialog({
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Dentista (Opcional)</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Seleccionar..." />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {dentists.map((d) => (
-                                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormControl>
+                                        <Combobox
+                                            options={dentists.map((d) => ({ value: d.id, label: d.name }))}
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            placeholder="Seleccionar dentista"
+                                            searchPlaceholder="Buscar dentista..."
+                                            emptyText="Sin dentistas."
+                                        />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -257,51 +243,37 @@ export function PaymentDialog({
                                     <div className="grid grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <Label>Categoría</Label>
-                                            <Select
-                                                onValueChange={(val) => {
+                                            <Combobox
+                                                options={Array.from(new Set(services.map(s => (s as any).category || 'General'))).sort().map(cat => ({ value: cat as string, label: cat as string }))}
+                                                value={selectedCategory}
+                                                onChange={(val) => {
                                                     setSelectedCategory(val);
                                                     form.setValue("serviceId", "");
                                                 }}
-                                                value={selectedCategory}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Seleccionar" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {Array.from(new Set(services.map(s => (s as any).category || 'General'))).sort().map(cat => (
-                                                        <SelectItem key={cat as string} value={cat as string}>
-                                                            {cat as string}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                                placeholder="Seleccionar categoría"
+                                                searchPlaceholder="Buscar categoría..."
+                                                emptyText="Sin categorías."
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Variante</Label>
-                                            <Select
-                                                onValueChange={(val) => {
+                                            <Combobox
+                                                options={services
+                                                    .filter(s => ((s as any).category || 'General') === selectedCategory)
+                                                    .map((s) => ({ value: s.id, label: s.name }))}
+                                                value={field.value}
+                                                onChange={(val) => {
                                                     field.onChange(val);
                                                     const service = services.find(s => s.id === val);
                                                     if (service) {
                                                         form.setValue("amount", Number(service.price));
                                                     }
                                                 }}
-                                                value={field.value}
+                                                placeholder="Seleccionar variante"
+                                                searchPlaceholder="Buscar variante..."
+                                                emptyText="Sin variantes."
                                                 disabled={!selectedCategory}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Seleccionar" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {services
-                                                        .filter(s => ((s as any).category || 'General') === selectedCategory)
-                                                        .map((s) => (
-                                                            <SelectItem key={s.id} value={s.id}>
-                                                                {s.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                </SelectContent>
-                                            </Select>
+                                            />
                                         </div>
                                     </div>
                                     <FormMessage />
@@ -330,18 +302,20 @@ export function PaymentDialog({
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Tipo de Pago</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Seleccionar..." />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value={PaymentType.DEPOSIT}>Abono / Anticipo</SelectItem>
-                                                <SelectItem value={PaymentType.FULL_PAYMENT}>Pago Completo</SelectItem>
-                                                <SelectItem value={PaymentType.BALANCE_SETTLEMENT}>Liquidación</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <FormControl>
+                                            <Combobox
+                                                options={[
+                                                    { value: PaymentType.DEPOSIT, label: "Abono / Anticipo" },
+                                                    { value: PaymentType.FULL_PAYMENT, label: "Pago Completo" },
+                                                    { value: PaymentType.BALANCE_SETTLEMENT, label: "Liquidación" },
+                                                ]}
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                placeholder="Seleccionar tipo"
+                                                searchPlaceholder="Buscar..."
+                                                emptyText="Sin opciones."
+                                            />
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -352,18 +326,20 @@ export function PaymentDialog({
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Método</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Seleccionar..." />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value={PaymentMethod.CASH}>Efectivo</SelectItem>
-                                                <SelectItem value={PaymentMethod.CARD}>Tarjeta</SelectItem>
-                                                <SelectItem value={PaymentMethod.TRANSFER}>Transferencia</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <FormControl>
+                                            <Combobox
+                                                options={[
+                                                    { value: PaymentMethod.CASH, label: "Efectivo" },
+                                                    { value: PaymentMethod.CARD, label: "Tarjeta" },
+                                                    { value: PaymentMethod.TRANSFER, label: "Transferencia" },
+                                                ]}
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                placeholder="Seleccionar método"
+                                                searchPlaceholder="Buscar..."
+                                                emptyText="Sin opciones."
+                                            />
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
