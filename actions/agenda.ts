@@ -4,7 +4,16 @@ import { prisma } from "@/lib/prisma"
 import { Appointment, AppointmentStatus } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { clinicWallTimeToUtc } from "@/lib/timezone"
+import { clinicWallTimeToUtc, clinicDayRangeUtc, formatClinic, clinicToday } from "@/lib/timezone"
+
+/** Normaliza la entrada de fecha a "YYYY-MM-DD" del calendario de la clínica. */
+function toClinicDateStr(dateInput: Date | string): string {
+    if (typeof dateInput === "string" && /^\d{4}-\d{2}-\d{2}/.test(dateInput)) {
+        return dateInput.slice(0, 10)
+    }
+    const d = new Date(dateInput)
+    return isNaN(d.getTime()) ? clinicToday() : formatClinic(d, "yyyy-MM-dd")
+}
 
 const createAppointmentSchema = z.object({
     isNewPatient: z.boolean().default(true),
@@ -21,25 +30,15 @@ const createAppointmentSchema = z.object({
 })
 
 export async function fetchAppointments(dateInput: Date | string) {
-    let date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
-
-    // Ensure we have a valid date object
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
-        date = new Date()
-    }
-
-    const start = new Date(date)
-    start.setHours(0, 0, 0, 0)
-
-    const end = new Date(start)
-    end.setHours(23, 59, 59, 999)
+    // Boundaries of the clinic's calendar day, as real UTC instants.
+    const { start, end } = clinicDayRangeUtc(toClinicDateStr(dateInput))
 
     try {
         const appointments = await prisma.appointment.findMany({
             where: {
                 startTime: {
                     gte: start,
-                    lte: end
+                    lt: end
                 },
                 status: {
                     not: "CANCELLED"
@@ -61,24 +60,14 @@ export async function fetchAppointments(dateInput: Date | string) {
 }
 
 export async function fetchCancelledAppointments(dateInput: Date | string) {
-    let date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
-
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
-        date = new Date()
-    }
-
-    const start = new Date(date)
-    start.setHours(0, 0, 0, 0)
-
-    const end = new Date(start)
-    end.setHours(23, 59, 59, 999)
+    const { start, end } = clinicDayRangeUtc(toClinicDateStr(dateInput))
 
     try {
         const appointments = await prisma.appointment.findMany({
             where: {
                 startTime: {
                     gte: start,
-                    lte: end
+                    lt: end
                 },
                 status: "CANCELLED"
             },

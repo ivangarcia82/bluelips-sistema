@@ -96,6 +96,8 @@ export function AgendaGrid({ consultories, date, appointments, dentists, service
 
     const getCurrentTimeTop = () => {
         const now = currentTime
+        // Only show the "now" line when viewing today's date.
+        if (formatClinic(now, "yyyy-MM-dd") !== formatClinic(date, "yyyy-MM-dd")) return null
         const currentHour = clinicHour(now)
         if (currentHour < startHour || currentHour > 20) return null
 

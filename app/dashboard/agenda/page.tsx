@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { fetchAppointments } from "@/actions/agenda"
 import { AppointmentDialog } from "@/components/agenda/appointment-dialog"
 import { BlockDialog } from "@/components/agenda/block-dialog"
+import { clinicToday, clinicWallTimeToUtc } from "@/lib/timezone"
 
 export default async function AgendaPage({
     searchParams,
@@ -13,13 +14,16 @@ export default async function AgendaPage({
     searchParams: Promise<{ date?: string }>
 }) {
     const params = await searchParams
-    const date = params.date ? new Date(params.date) : new Date()
+    // Clinic calendar day ("YYYY-MM-DD"); default = today in the clinic's timezone.
+    const dateStr = params.date && /^\d{4}-\d{2}-\d{2}/.test(params.date) ? params.date.slice(0, 10) : clinicToday()
+    // Canonical Date for dialogs' defaultDate (midnight of that day in clinic time).
+    const date = clinicWallTimeToUtc(dateStr, "00:00")
 
     const [consultories, dentists, servicesRaw, appointments, patients] = await Promise.all([
         prisma.consultory.findMany({ orderBy: { name: 'asc' } }),
         prisma.dentist.findMany(),
         prisma.service.findMany(),
-        fetchAppointments(date.toISOString()),
+        fetchAppointments(dateStr),
         prisma.patient.findMany({ orderBy: { name: 'asc' } })
     ])
 

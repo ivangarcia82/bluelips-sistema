@@ -26,11 +26,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Combobox } from "@/components/ui/combobox"
 import { blockTimeSlot } from "@/actions/agenda"
+import { formatClinic } from "@/lib/timezone"
 import { Consultory } from "@prisma/client"
 
 const formSchema = z.object({
     consultoryId: z.string().min(1, "Selecciona un consultorio"),
-    date: z.string(),
     startTime: z.string(), // HH:mm
     endTime: z.string(),   // HH:mm
     notes: z.string().optional(),
@@ -66,7 +66,6 @@ export function BlockDialog({
         resolver: zodResolver(formSchema),
         defaultValues: {
             consultoryId: defaultConsultoryId,
-            date: defaultDate.toISOString().split('T')[0],
             startTime: defaultStartTime,
             endTime: defaultEndTime,
             notes: "",
@@ -75,7 +74,9 @@ export function BlockDialog({
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const result = await blockTimeSlot(values)
+            // Read the date fresh from the current prop (not stored in the form),
+            // so navigating the agenda before opening this dialog can't stale it.
+            const result = await blockTimeSlot({ ...values, date: formatClinic(defaultDate, "yyyy-MM-dd") })
 
             if (result?.error) {
                 alert(result.error)

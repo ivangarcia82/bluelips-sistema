@@ -147,7 +147,7 @@ export function AppointmentDialog({
             if (appointment) {
                 result = await updateAppointment(appointment.id, {
                     ...values,
-                    date: format(new Date(appointment.date), "yyyy-MM-dd"), // Keep original date or allow moving?
+                    date: formatClinic(appointment.date, "yyyy-MM-dd"), // Keep original date or allow moving?
                     // Ideally we should allow moving date too, but dialog prompt says "Agendar cita para el {defaultDate}".
                     // For now let's assume date is fixed or derived from defaultDate if new.
                     // Actually, if we edit, we might want to change date too?
@@ -159,7 +159,7 @@ export function AppointmentDialog({
             } else {
                 result = await createAppointment({
                     ...values,
-                    date: format(defaultDate, "yyyy-MM-dd"),
+                    date: formatClinic(defaultDate, "yyyy-MM-dd"),
                 })
             }
 
@@ -186,7 +186,7 @@ export function AppointmentDialog({
                 <DialogHeader>
                     <DialogTitle>Nueva Cita</DialogTitle>
                     <DialogDescription>
-                        Agendar cita para el {format(defaultDate, "PPPP")}.
+                        Agendar cita para el {formatClinic(defaultDate, "PPPP")}.
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>

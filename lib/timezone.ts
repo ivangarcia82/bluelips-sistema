@@ -31,3 +31,18 @@ export function clinicMinute(d: Date | string): number {
 export function formatClinic(d: Date | string, fmt: string): string {
     return formatInTimeZone(new Date(d), CLINIC_TZ, fmt)
 }
+
+/** Fecha de hoy ("YYYY-MM-DD") según el calendario de la clínica. */
+export function clinicToday(): string {
+    return formatInTimeZone(new Date(), CLINIC_TZ, "yyyy-MM-dd")
+}
+
+/**
+ * Rango UTC [start, end) que cubre un día completo del calendario de la clínica.
+ * @param dateStr "YYYY-MM-DD"
+ */
+export function clinicDayRangeUtc(dateStr: string): { start: Date; end: Date } {
+    const start = clinicWallTimeToUtc(dateStr, "00:00")
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+    return { start, end }
+}
