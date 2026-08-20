@@ -102,21 +102,40 @@ export async function createPayment(data: {
             }
         }
 
-        // VALIDATION: Check for overpayment
+        // VALIDATION: Check for overpayment (and handle treatment changes)
+        // If the treatment changed at charge time, we reassign the appointment's
+        // service so the balance reflects what was actually performed. We only
+        // persist that reassignment once the payment passes validation.
+        let reassignServiceId: string | null = null
         if (finalAppointmentId) {
             const appointment = await prisma.appointment.findUnique({
                 where: { id: finalAppointmentId },
                 include: { service: true, payments: true }
             })
 
-            if (appointment && appointment.service) {
-                const totalCost = Number(appointment.service.price)
-                const totalPaid = appointment.payments.reduce((sum, p) => sum + Number(p.amount), 0)
-                const remaining = totalCost - totalPaid
+            if (appointment) {
+                // Effective service = the one selected in the charge, if different
+                // from the appointment's current one (i.e. the treatment changed).
+                let effectiveService = appointment.service
+                if (data.serviceId && data.serviceId !== appointment.serviceId) {
+                    const newService = await prisma.service.findUnique({
+                        where: { id: data.serviceId }
+                    })
+                    if (newService) {
+                        effectiveService = newService
+                        reassignServiceId = newService.id
+                    }
+                }
 
-                // Allow 0.1 tolerance for floating point
-                if (data.amount > remaining + 0.1) {
-                    return { error: `El pago excede el saldo restante de $${remaining.toFixed(2)}` }
+                if (effectiveService) {
+                    const totalCost = Number(effectiveService.price)
+                    const totalPaid = appointment.payments.reduce((sum, p) => sum + Number(p.amount), 0)
+                    const remaining = totalCost - totalPaid
+
+                    // Allow 0.1 tolerance for floating point
+                    if (data.amount > remaining + 0.1) {
+                        return { error: `El pago excede el saldo restante de $${remaining.toFixed(2)}` }
+                    }
                 }
             }
         }
@@ -143,6 +162,15 @@ export async function createPayment(data: {
             }
         }
 
+        // Treatment changed: update the appointment to the new service so the
+        // recorded treatment, cost and future balances all match the charge.
+        if (reassignServiceId && finalAppointmentId) {
+            await prisma.appointment.update({
+                where: { id: finalAppointmentId },
+                data: { serviceId: reassignServiceId }
+            })
+        }
+
         await prisma.payment.create({
             data: {
                 amount: new Prisma.Decimal(data.amount),
@@ -160,6 +188,8 @@ export async function createPayment(data: {
             }
         })
         revalidatePath('/dashboard')
+        revalidatePath('/dashboard/agenda')
+        revalidatePath('/dashboard/payments')
         return { success: true }
     } catch (error) {
         console.error(error)
