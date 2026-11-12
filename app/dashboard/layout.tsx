@@ -19,7 +19,7 @@ export default async function DashboardLayout({
         <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-900">
             <DashboardSidebar userRole={(session?.user as any)?.role || "RECEPTIONIST"} />
 
-            <div className="flex flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
                 <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6 lg:h-[60px] dark:bg-slate-950">
                     <MobileNav />
                     <div className="w-full flex-1">

@@ -1,4 +1,4 @@
-import { Calendar, Users, Package, DollarSign, BarChart, Settings, UserCog, Building2 } from "lucide-react"
+import { Calendar, Users, Package, DollarSign, BarChart, Settings, UserCog, Building2, Boxes } from "lucide-react"
 
 export interface NavItem {
     title: string
@@ -22,6 +22,12 @@ export const navItems: NavItem[] = [
         title: "Pacientes",
         href: "/dashboard/patients",
         icon: Users,
+        roles: ["ADMIN", "RECEPTIONIST", "DENTIST"],
+    },
+    {
+        title: "Insumos",
+        href: "/dashboard/supplies",
+        icon: Boxes,
         roles: ["ADMIN", "RECEPTIONIST", "DENTIST"],
     },
     {

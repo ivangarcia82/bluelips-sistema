@@ -1,0 +1,21 @@
+// Afecciones de la historia clínica (campo booleano → etiqueta).
+export const CONDITIONS = [
+    { name: "allergies", label: "Alergia medicamento" },
+    { name: "heartProblems", label: "Problemas cardiacos" },
+    { name: "hypertension", label: "Hipertensión" },
+    { name: "hypotension", label: "Hipotensión" },
+    { name: "venerealDiseases", label: "Enfermedades venéreas" },
+    { name: "rheumaticFever", label: "Fiebre reumática" },
+    { name: "hepatitis", label: "Hepatitis" },
+    { name: "ulcers", label: "Úlceras" },
+    { name: "headache", label: "Dolor de cabeza" },
+    { name: "hiv", label: "VIH" },
+    { name: "epilepsy", label: "Epilepsia" },
+    { name: "arthritis", label: "Artritis" },
+    { name: "cancer", label: "Cáncer" },
+    { name: "diabetes", label: "Diabetes" },
+    { name: "nervousAlterations", label: "Alteraciones nerviosas" },
+    { name: "renalAlterations", label: "Alteraciones renales" },
+    { name: "sinusitis", label: "Sinusitis" },
+    { name: "pregnancy", label: "Embarazo" },
+] as const

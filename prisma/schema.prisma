@@ -60,6 +60,7 @@ model Dentist {
   appointments Appointment[]
   payments     Payment[]
   expenses     Expense[]
+  returnSheets ReturnSheet[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -83,6 +84,8 @@ model Patient {
   payments       Payment[]
   medicalHistory MedicalHistory?
   odontogram     OdontogramCondition[]
+  returnSheets   ReturnSheet[]
+  files          PatientFile[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -134,7 +137,8 @@ model Appointment {
   service   Service @relation(fields: [serviceId], references: [id])
   serviceId String
 
-  payments Payment[]
+  payments     Payment[]
+  returnSheets ReturnSheet[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -221,6 +225,12 @@ model MedicalHistory {
   lastDentalVisit     String?
   referralSource      String?
 
+  // Firma del paciente (PNG en data URL). Una historia firmada queda
+  // bloqueada; cualquier edición borra la firma y exige volver a firmar.
+  signature           String?
+  signerName          String?
+  signedAt            DateTime?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
@@ -239,4 +249,98 @@ model OdontogramCondition {
   updatedAt DateTime @updatedAt
 
   @@unique([patientId, toothId, type])
+}
+
+// Hoja de devolución: el doctor anota lo que se le hizo al paciente y el
+// paciente firma de conformidad. Editable (incluido el doctor) hasta firmarse.
+model ReturnSheet {
+  id String @id @default(cuid())
+
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patientId String
+
+  dentist   Dentist @relation(fields: [dentistId], references: [id])
+  dentistId String
+
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  appointmentId String?
+
+  date         DateTime @default(now())
+  procedures   String // Qué se le hizo
+  observations String? // Indicaciones / observaciones
+
+  signature  String?
+  signerName String?
+  signedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([patientId])
+}
+
+model PatientFile {
+  id String @id @default(cuid())
+
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patientId String
+
+  name        String
+  pathname    String // Ruta en Vercel Blob (privado)
+  contentType String
+  size        Int
+  uploadedBy  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([patientId])
+}
+
+model Supply {
+  id       String  @id @default(cuid())
+  name     String
+  category String  @default("General")
+  unit     String  @default("pza")
+  minStock Int     @default(0)
+  notes    String?
+
+  batches   SupplyBatch[]
+  movements SupplyMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Lote con caducidad propia. El stock de un insumo es la suma de sus lotes.
+model SupplyBatch {
+  id         String    @id @default(cuid())
+  supply     Supply    @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  supplyId   String
+  lot        String?
+  expiryDate DateTime?
+  quantity   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplyId])
+}
+
+enum SupplyMovementType {
+  IN
+  OUT
+}
+
+model SupplyMovement {
+  id       String             @id @default(cuid())
+  supply   Supply             @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  supplyId String
+  type     SupplyMovementType
+  quantity Int
+  reason   String?
+  userName String?
+
+  createdAt DateTime @default(now())
+
+  @@index([supplyId])
 }

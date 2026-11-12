@@ -4,11 +4,14 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Clock, Calendar, FileText, Activity, HeartPulse } from "lucide-react"
+import { ArrowLeft, Calendar, FileText, Activity, HeartPulse, ClipboardCheck, Paperclip, FileDown, FileSignature } from "lucide-react"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MedicalHistoryForm } from "@/components/patients/medical-history-form"
 import { OdontogramView } from "@/components/patients/odontogram-view"
+import { ReturnSheets } from "@/components/patients/return-sheets"
+import { PatientFiles } from "@/components/patients/patient-files"
+import { formatClinic } from "@/lib/timezone"
 
 export default async function PatientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
@@ -29,9 +32,17 @@ export default async function PatientDetailsPage({ params }: { params: Promise<{
                 }
             },
             medicalHistory: true,
-            odontogram: true
+            odontogram: true,
+            returnSheets: {
+                include: { dentist: true },
+                orderBy: { date: 'desc' }
+            },
+            files: {
+                orderBy: { createdAt: 'desc' }
+            }
         }
     })
+    const dentists = await prisma.dentist.findMany({ orderBy: { name: 'asc' } })
 
     if (!patient) {
         notFound()
@@ -50,9 +61,40 @@ export default async function PatientDetailsPage({ params }: { params: Promise<{
         tutorPhone: patient.tutorPhone,
     }
 
+    const returnSheets = patient.returnSheets.map((s) => ({
+        id: s.id,
+        date: s.date.toISOString(),
+        procedures: s.procedures,
+        observations: s.observations,
+        dentistId: s.dentistId,
+        dentistName: s.dentist.name,
+        appointmentId: s.appointmentId,
+        signature: s.signature,
+        signerName: s.signerName,
+        signedAt: s.signedAt?.toISOString() ?? null,
+    }))
+
+    const sheetAppointments = patient.appointments
+        .filter((a) => a.status !== 'CANCELLED' && a.status !== 'BLOCKED')
+        .map((a) => ({
+            id: a.id,
+            dentistId: a.dentistId,
+            date: a.startTime.toISOString(),
+            label: `${formatClinic(a.startTime, "dd/MM/yyyy HH:mm")} · ${a.service?.name ?? ''} · Dr. ${a.dentist?.name ?? ''}`,
+        }))
+
+    const files = patient.files.map((f) => ({
+        id: f.id,
+        name: f.name,
+        contentType: f.contentType,
+        size: f.size,
+        uploadedBy: f.uploadedBy,
+        createdAt: f.createdAt.toISOString(),
+    }))
+
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
                 <Link href="/dashboard/patients">
                     <Button variant="ghost" size="icon">
                         <ArrowLeft className="h-4 w-4" />
@@ -69,17 +111,37 @@ export default async function PatientDetailsPage({ params }: { params: Promise<{
                         </div>
                     )}
                 </div>
+                <div className="ml-auto flex flex-wrap gap-2">
+                    <Button variant="outline" asChild>
+                        <a href={`/print/patients/${patient.id}/consent`} target="_blank" rel="noreferrer">
+                            <FileSignature className="mr-2 h-4 w-4" /> Consentimiento informado
+                        </a>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <a href={`/print/patients/${patient.id}/record`} target="_blank" rel="noreferrer">
+                            <FileDown className="mr-2 h-4 w-4" /> Exportar expediente
+                        </a>
+                    </Button>
+                </div>
             </div>
 
-            <Tabs defaultValue="odontogram" className="w-full">
-                <TabsList className="mb-4">
+            <Tabs defaultValue="history" className="w-full">
+                <TabsList className="mb-4 h-auto flex-wrap justify-start">
+                    <TabsTrigger value="history" className="flex items-center gap-2">
+                        <Activity className="h-4 w-4" />
+                        Historia Clínica
+                    </TabsTrigger>
                     <TabsTrigger value="odontogram" className="flex items-center gap-2">
                         <HeartPulse className="h-4 w-4" />
                         Odontograma
                     </TabsTrigger>
-                    <TabsTrigger value="history" className="flex items-center gap-2">
-                        <Activity className="h-4 w-4" />
-                        Historia Clínica
+                    <TabsTrigger value="returnSheets" className="flex items-center gap-2">
+                        <ClipboardCheck className="h-4 w-4" />
+                        Hojas de devolución
+                    </TabsTrigger>
+                    <TabsTrigger value="files" className="flex items-center gap-2">
+                        <Paperclip className="h-4 w-4" />
+                        Archivos
                     </TabsTrigger>
                     <TabsTrigger value="appointments" className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
@@ -91,12 +153,26 @@ export default async function PatientDetailsPage({ params }: { params: Promise<{
                     </TabsTrigger>
                 </TabsList>
 
+                <TabsContent value="history">
+                    <MedicalHistoryForm patient={patientDemographics as any} medicalHistory={patient.medicalHistory} />
+                </TabsContent>
+
                 <TabsContent value="odontogram">
                     <OdontogramView patientId={patient.id} conditions={patient.odontogram} />
                 </TabsContent>
 
-                <TabsContent value="history">
-                    <MedicalHistoryForm patient={patientDemographics as any} medicalHistory={patient.medicalHistory} />
+                <TabsContent value="returnSheets">
+                    <ReturnSheets
+                        patientId={patient.id}
+                        defaultSignerName={patient.tutorName || patient.name}
+                        sheets={returnSheets}
+                        dentists={dentists.map((d) => ({ id: d.id, label: d.name }))}
+                        appointments={sheetAppointments}
+                    />
+                </TabsContent>
+
+                <TabsContent value="files">
+                    <PatientFiles patientId={patient.id} files={files} />
                 </TabsContent>
 
                 <TabsContent value="appointments">
